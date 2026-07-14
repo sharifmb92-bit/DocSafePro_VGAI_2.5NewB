@@ -6,14 +6,14 @@
     
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="DocSafe">
+    <meta name="apple-mobile-web-app-title" content="DocSafe 1.3.0">
     
     <!-- PWA MANIFEST (Con tu escudo y la ruta exacta corregida para el Share) -->
-    <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiRG9jU2FmZSBNZW5vcmNhIiwic2hvcnRfbmFtZSI6IkRvY1NhZmUiLCJzdGFydF91cmwiOiIuIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJiYWNrZ3JvdW5kX2NvbG9yIjoiIzBmMTcyYSIsInRoZW1lX2NvbG9yIjoiIzBmMTcyYSIsImljb25zIjpbeyJzcmMiOiJodHRwczovL2Nkbi1pY29ucy1wbmcuZmxhdGljb24uY29tLzUxMi8xMTYxLzExNjEzODgucG5nIiwic2l6ZXMiOiI1MTJ4NTEyIiwidHlwZSI6ImltYWdlL3BuZyIsInB1cnBvc2UiOiJhbnkifV0sInNoYXJlX3RhcmdldCI6eyJhY3Rpb24iOiIuL3NoYXJlLXRhcmdldCIsIm1ldGhvZCI6IlBPU1QiLCJlbmN0eXBlIjoibXVsdGlwYXJ0L2Zvcm0tZGF0YSIsInBhcmFtcyI6eyJ0aXRsZSI6InRpdGxlIiwidGV4dCI6InRleHQiLCJmaWxlcyI6W3sibmFtZSI6InNoYXJlZF9maWxlIiwiYWNjZXB0IjpbImltYWdlLyoiLCIucGRmIiwiYXBwbGljYXRpb24vcGRmIl19XX19fQ==">
+    <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiRG9jU2FmZSBNZW5vcmNhIDEuMy4wIiwic2hvcnRfbmFtZSI6IkRvY1NhZmUiLCJzdGFydF91cmwiOiIuIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJiYWNrZ3JvdW5kX2NvbG9yIjoiIzBmMTcyYSIsInRoZW1lX2NvbG9yIjoiIzBmMTcyYSIsImljb25zIjpbeyJzcmMiOiJodHRwczovL2Nkbi1pY29ucy1wbmcuZmxhdGljb24uY29tLzUxMi8xMTYxLzExNjEzODgucG5nIiwic2l6ZXMiOiI1MTJ4NTEyIiwidHlwZSI6ImltYWdlL3BuZyIsInB1cnBvc2UiOiJhbnkifV0sInNoYXJlX3RhcmdldCI6eyJhY3Rpb24iOiIuL3NoYXJlLXRhcmdldCIsIm1ldGhvZCI6IlBPU1QiLCJlbmN0eXBlIjoibXVsdGlwYXJ0L2Zvcm0tZGF0YSIsInBhcmFtcyI6eyJ0aXRsZSI6InRpdGxlIiwidGV4dCI6InRleHQiLCJmaWxlcyI6W3sibmFtZSI6InNoYXJlZF9maWxlIiwiYWNjZXB0IjpbImltYWdlLyoiLCIucGRmIiwiYXBwbGljYXRpb24vcGRmIl19XX19fQ==">
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/1161/1161388.png">
     <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/1161/1161388.png">
     
-    <title>DocSafe 🛡️ Menorca Cloud</title>
+    <title>DocSafe 1.3.0 🛡️ Menorca Cloud</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -23,6 +23,9 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <!-- LIBRERÍA DE RENDERIZADO PDF DIRECTO (Evita visualización de código crudo) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
 
     <style>
         [x-cloak] { display: none !important; }
@@ -35,6 +38,8 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .active-tab { background-color: #3b82f6 !important; color: white !important; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4); }
         .thumb-img { object-fit: cover; width: 100%; height: 100%; border-radius: 1rem; }
+        /* Estilo para el canvas donde pintamos el PDF directamente */
+        .pdf-canvas-container canvas { max-width: 100%; height: auto !important; margin-bottom: 10px; border-radius: 0.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5); }
     </style>
 </head>
 <body x-data="docApp()" x-init="init()" class="pb-24">
@@ -43,13 +48,12 @@
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                // Ahora busca el archivo físico 'sw.js' que vas a crear al lado.
                 navigator.serviceWorker.register('./sw.js').catch(console.error);
             });
         }
     </script>
 
-    <!-- PANTALLA DE SEGURIDAD (LOGIN) -->
+    <!-- PANTALLA DE SEGURIDAD (LOGIN ORIGINAL SIN ALTERACIONES) -->
     <div x-show="!usuarioLogueado" class="fixed inset-0 z-[300] bg-slate-900 flex flex-col items-center justify-center p-6" x-transition x-cloak>
         <div class="text-center mb-10">
             <span class="material-symbols-outlined text-[80px] text-blue-500 mb-4 drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]">shield_lock</span>
@@ -77,21 +81,35 @@
         <button @click="forzarCancelacion()" class="mt-8 px-6 py-2 border border-red-500 text-red-500 rounded-full text-xs font-bold uppercase tracking-widest active:bg-red-500 active:text-white transition-colors">Cancelar</button>
     </div>
 
-    <!-- VISOR DE DOCUMENTOS -->
+    <!-- VISOR INTEGRADO COMPLETO (Renderiza directo sin descargas) -->
     <div x-show="docViewer" class="fixed inset-0 z-[200] bg-black/95 flex flex-col backdrop-blur-xl" x-transition x-cloak>
         <div class="p-4 flex justify-between items-center border-b border-white/10 bg-slate-900">
             <h3 class="text-white font-black truncate max-w-[70%]" x-text="docActual?.nombre"></h3>
-            <button @click="docViewer = false; docActual = null" class="bg-slate-800 text-white p-3 rounded-full hover:bg-red-500 transition-colors">
+            <button @click="cerrarVisor()" class="bg-slate-800 text-white p-3 rounded-full hover:bg-red-500 transition-colors">
                 <span class="material-symbols-outlined">close</span>
             </button>
         </div>
-        <div class="flex-grow overflow-auto p-2 flex items-center justify-center">
+        <div class="flex-grow overflow-auto p-4 flex flex-col items-center">
+            
+            <!-- CASO 1: IMÁGENES -->
             <template x-if="docActual && !docActual.esPDF">
-                <img :src="docActual.dataBase64" class="max-w-full rounded-lg shadow-2xl">
+                <div class="w-full h-full flex items-center justify-center">
+                    <img :src="docActual.dataBase64" class="max-w-full max-h-[80vh] rounded-lg shadow-2xl object-contain">
+                </div>
             </template>
+
+            <!-- CASO 2: RENDERIZADOR PDF (Pinta las páginas directo sobre Canvas) -->
             <template x-if="docActual && docActual.esPDF">
-                <iframe :src="docActual.dataBase64" class="w-full h-full rounded-lg bg-white"></iframe>
+                <div class="w-full max-w-2xl">
+                    <div x-show="cargandoPDF" class="text-center py-10">
+                        <div class="animate-spin rounded-full h-10 w-10 border-t-2 border-blue-500 mx-auto mb-4"></div>
+                        <p class="text-sm font-bold text-slate-400">Preparando lectura de documento...</p>
+                    </div>
+                    <!-- Contenedor donde PDF.js inyectará las páginas dibujadas -->
+                    <div id="pdf-viewer-container" class="pdf-canvas-container flex flex-col items-center"></div>
+                </div>
             </template>
+            
         </div>
     </div>
 
@@ -102,6 +120,7 @@
                 <div>
                     <div class="flex items-center gap-2">
                         <h1 class="text-3xl font-black tracking-tighter italic text-white">Doc<span class="text-blue-500">Safe</span></h1>
+                        <span class="bg-slate-800 text-slate-400 text-[9px] font-black uppercase px-2 py-0.5 rounded-md tracking-wider">v1.3.0</span>
                     </div>
                     <p class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1">Caja Fuerte Privada 🔒</p>
                 </div>
@@ -225,6 +244,9 @@
     </template>
 
     <script>
+        // Configuración de la librería de Mozilla para renderizar PDFs directamente
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
         const firebaseConfig = {
             apiKey: "AIzaSyC7b6_T0ze2HgXiYHfvUeL12JSXE7ZKogc",
             authDomain: "misturnos-fe3ea.firebaseapp.com",
@@ -246,6 +268,7 @@
                 filtro: 'TODOS', categorias:['TODOS', 'BUS', 'NÓMINAS', 'SALUD', 'PERSONALES', 'OTROS'],
                 docs:[], nuevo: { nombre: '', categoria: 'BUS', fecha: '', esPDF: false },
                 docViewer: false, docActual: null, archivoPendiente: null,
+                cargandoPDF: false,
                 
                 init() {
                     auth.onAuthStateChanged((user) => {
@@ -295,7 +318,73 @@
                     }
                 },
 
-                abrirVisor(doc) { this.docActual = doc; this.docViewer = true; },
+                abrirVisor(doc) { 
+                    this.docActual = doc; 
+                    this.docViewer = true; 
+
+                    if (doc.esPDF) {
+                        this.cargandoPDF = true;
+                        // Esperamos un instante para asegurarnos de que el DOM de Alpine se ha dibujado
+                        this.$nextTick(() => {
+                            this.renderizarPDFDirecto(doc.dataBase64);
+                        });
+                    }
+                },
+
+                cerrarVisor() {
+                    this.docViewer = false;
+                    this.docActual = null;
+                    const container = document.getElementById('pdf-viewer-container');
+                    if (container) container.innerHTML = '';
+                },
+
+                // Función que descodifica el Base64 y dibuja cada hoja del PDF en pantalla
+                async renderizarPDFDirecto(base64Data) {
+                    try {
+                        const container = document.getElementById('pdf-viewer-container');
+                        if (!container) return;
+                        container.innerHTML = ''; // Limpiamos visores previos
+
+                        // Extraemos la parte limpia de los bytes en base64
+                        const base64Pure = base64Data.split(';base64,').pop();
+                        const binaryString = atob(base64Pure);
+                        const len = binaryString.length;
+                        const bytes = new Uint8Array(len);
+                        for (let i = 0; i < len; i++) {
+                            bytes[i] = binaryString.charCodeAt(i);
+                        }
+
+                        // Cargamos el documento en PDF.js
+                        const loadingTask = pdfjsLib.getDocument({ data: bytes });
+                        const pdf = await loadingTask.promise;
+
+                        // Renderizamos todas las páginas del documento secuencialmente
+                        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                            const page = await pdf.getPage(pageNum);
+                            const viewport = page.getViewport({ scale: 1.5 });
+
+                            // Creamos un canvas para la página
+                            const canvas = document.createElement('canvas');
+                            const context = canvas.getContext('2d');
+                            canvas.height = viewport.height;
+                            canvas.width = viewport.width;
+
+                            container.appendChild(canvas);
+
+                            const renderContext = {
+                                canvasContext: context,
+                                viewport: viewport
+                            };
+                            await page.render(renderContext).promise;
+                        }
+                    } catch (e) {
+                        console.error("Error al renderizar PDF:", e);
+                        alert("⚠️ No se pudo renderizar el PDF directamente en pantalla.");
+                    } finally {
+                        this.cargandoPDF = false;
+                    }
+                },
+
                 cancelarCompartido() { this.archivoPendiente = null; this.nuevo.nombre = ''; this.showEditor = false; },
                 forzarCancelacion() { this.loading = false; this.statusMsg = "Cancelado"; },
 
@@ -389,5 +478,6 @@
             }
         }
     </script>
+    <div style="display:none;">medbasha</div>
 </body>
 </html>
