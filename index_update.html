@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="DocSafe 1.3.0">
+    
+    <!-- PWA MANIFEST (Con tu escudo y la ruta exacta corregida para el Share) -->
+    <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiRG9jU2FmZSBNZW5vcmNhIDEuMy4wIiwic2hvcnRfbmFtZSI6IkRvY1NhZmUiLCJzdGFydF91cmwiOiIuIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJiYWNrZ3JvdW5kX2NvbG9yIjoiIzBmMTcyYSIsInRoZW1lX2NvbG9yIjoiIzBmMTcyYSIsImljb25zIjpbeyJzcmMiOiJodHRwczovL2Nkbi1pY29ucy1wbmcuZmxhdGljb24uY29tLzUxMi8xMTYxLzExNjEzODgucG5nIiwic2l6ZXMiOiI1MTJ4NTEyIiwidHlwZSI6ImltYWdlL3BuZyIsInB1cnBvc2UiOiJhbnkifV0sInNoYXJlX3RhcmdldCI6eyJhY3Rpb24iOiIuL3NoYXJlLXRhcmdldCIsIm1ldGhvZCI6IlBPU1QiLCJlbmN0eXBlIjoibXVsdGlwYXJ0L2Zvcm0tZGF0YSIsInBhcmFtcyI6eyJ0aXRsZSI6InRpdGxlIiwidGV4dCI6InRleHQiLCJmaWxlcyI6W3sibmFtZSI6InNoYXJlZF9maWxlIiwiYWNjZXB0IjpbImltYWdlLyoiLCIucGRmIiwiYXBwbGljYXRpb24vcGRmIl19XX19fQ==">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/1161/1161388.png">
+    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/1161/1161388.png">
+    
+    <title>DocSafe 1.3.0 🛡️ Menorca Cloud</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+    
+    <!-- FIREBASE -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <!-- LIBRERÍA DE RENDERIZADO PDF DIRECTO (Evita visualización de código crudo) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+
+    <style>
+        [x-cloak] { display: none !important; }
+        body { background-color: #0f172a; color: #f1f5f9; font-family: system-ui, sans-serif; overflow-x: hidden; padding-top: env(safe-area-inset-top); }
+        .card-doc { background: #1e293b; border-radius: 1.5rem; border: 1px solid #334155; }
+        .expiry-warning { border-left: 6px solid #ef4444; background: #271017; }
+        .nomina-style { border-left: 6px solid #22c55e; }
+        input, select { background: #0f172a !important; border: 1px solid #334155 !important; color: white !important; }
+        .loading-overlay { background: rgba(15, 23, 42, 0.98); backdrop-filter: blur(10px); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .active-tab { background-color: #3b82f6 !important; color: white !important; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4); }
+        .thumb-img { object-fit: cover; width: 100%; height: 100%; border-radius: 1rem; }
+        /* Estilo para el canvas donde pintamos el PDF directamente */
+        .pdf-canvas-container canvas { max-width: 100%; height: auto !important; margin-bottom: 10px; border-radius: 0.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5); }
+    </style>
+</head>
+<body x-data="docApp()" x-init="init()" class="pb-24">
+
+    <!-- MOTOR PWA FÍSICO -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').catch(console.error);
+            });
+        }
+    </script>
+
+    <!-- PANTALLA DE SEGURIDAD (LOGIN ORIGINAL SIN ALTERACIONES) -->
+    <div x-show="!usuarioLogueado" class="fixed inset-0 z-[300] bg-slate-900 flex flex-col items-center justify-center p-6" x-transition x-cloak>
+        <div class="text-center mb-10">
+            <span class="material-symbols-outlined text-[80px] text-blue-500 mb-4 drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]">shield_lock</span>
+            <h1 class="text-4xl font-black italic text-white tracking-tighter">Doc<span class="text-blue-500">Safe</span></h1>
+            <p class="text-xs font-bold text-slate-500 uppercase tracking-[0.3em] mt-2">Bóveda Privada</p>
+        </div>
+        
+        <div class="w-full max-w-sm space-y-4 card-doc p-6 shadow-2xl">
+            <p class="text-red-400 text-xs font-bold text-center h-4" x-text="errorLogin"></p>
+            <input type="email" x-model="loginData.email" placeholder="Correo electrónico" class="w-full p-4 rounded-xl text-sm font-bold outline-none focus:ring-2 ring-blue-500">
+            <input type="password" x-model="loginData.pass" placeholder="Contraseña" class="w-full p-4 rounded-xl text-sm font-bold outline-none focus:ring-2 ring-blue-500">
+            <button @click="iniciarSesion()" class="w-full py-4 bg-blue-600 rounded-xl font-black text-white uppercase text-sm shadow-[0_0_20px_rgba(37,99,235,0.4)] active:bg-blue-700 transition-colors mt-4">
+                Desbloquear Bóveda
+            </button>
+        </div>
+    </div>
+
+    <!-- PANTALLA DE CARGA -->
+    <div x-show="loading && usuarioLogueado" class="fixed inset-0 z-[100] loading-overlay flex flex-col items-center justify-center p-8 text-center" x-transition x-cloak>
+        <div class="relative flex items-center justify-center mb-8">
+            <div class="animate-spin rounded-full h-24 w-24 border-t-4 border-blue-500"></div>
+            <span class="absolute material-symbols-outlined text-4xl text-blue-500">shield</span>
+        </div>
+        <p class="text-xl font-black text-white uppercase tracking-widest mb-2" x-text="statusMsg"></p>
+        <button @click="forzarCancelacion()" class="mt-8 px-6 py-2 border border-red-500 text-red-500 rounded-full text-xs font-bold uppercase tracking-widest active:bg-red-500 active:text-white transition-colors">Cancelar</button>
+    </div>
+
+    <!-- VISOR INTEGRADO COMPLETO (Renderiza directo sin descargas) -->
+    <div x-show="docViewer" class="fixed inset-0 z-[200] bg-black/95 flex flex-col backdrop-blur-xl" x-transition x-cloak>
+        <div class="p-4 flex justify-between items-center border-b border-white/10 bg-slate-900">
+            <h3 class="text-white font-black truncate max-w-[70%]" x-text="docActual?.nombre"></h3>
+            <button @click="cerrarVisor()" class="bg-slate-800 text-white p-3 rounded-full hover:bg-red-500 transition-colors">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        <div class="flex-grow overflow-auto p-4 flex flex-col items-center">
+            
+            <!-- CASO 1: IMÁGENES -->
+            <template x-if="docActual && !docActual.esPDF">
+                <div class="w-full h-full flex items-center justify-center">
+                    <img :src="docActual.dataBase64" class="max-w-full max-h-[80vh] rounded-lg shadow-2xl object-contain">
+                </div>
+            </template>
+
+            <!-- CASO 2: RENDERIZADOR PDF (Pinta las páginas directo sobre Canvas) -->
+            <template x-if="docActual && docActual.esPDF">
+                <div class="w-full max-w-2xl">
+                    <div x-show="cargandoPDF" class="text-center py-10">
+                        <div class="animate-spin rounded-full h-10 w-10 border-t-2 border-blue-500 mx-auto mb-4"></div>
+                        <p class="text-sm font-bold text-slate-400">Preparando lectura de documento...</p>
+                    </div>
+                    <!-- Contenedor donde PDF.js inyectará las páginas dibujadas -->
+                    <div id="pdf-viewer-container" class="pdf-canvas-container flex flex-col items-center"></div>
+                </div>
+            </template>
+            
+        </div>
+    </div>
+
+    <!-- APP PRINCIPAL -->
+    <template x-if="usuarioLogueado">
+        <div>
+            <header class="p-6 flex justify-between items-center bg-slate-900/90 backdrop-blur-md sticky top-0 z-10 border-b border-blue-500/20">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-3xl font-black tracking-tighter italic text-white">Doc<span class="text-blue-500">Safe</span></h1>
+                        <span class="bg-slate-800 text-slate-400 text-[9px] font-black uppercase px-2 py-0.5 rounded-md tracking-wider">v1.3.0</span>
+                    </div>
+                    <p class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1">Caja Fuerte Privada 🔒</p>
+                </div>
+                <div class="flex items-center gap-4">
+                    <button @click="showEditor = !showEditor" class="bg-blue-600 p-4 rounded-2xl shadow-[0_0_20px_rgba(37,99,235,0.4)] active:scale-90 transition-transform">
+                        <span class="material-symbols-outlined text-white font-black" x-text="showEditor ? 'close' : 'add_circle'"></span>
+                    </button>
+                </div>
+            </header>
+
+            <main class="p-4 space-y-6">
+                <!-- PANEL DE SUBIDA -->
+                <section x-show="showEditor" x-transition x-cloak class="card-doc p-6 space-y-5 shadow-2xl border-blue-500/40">
+                    <h2 class="text-xs font-black text-blue-400 uppercase tracking-widest flex items-center gap-2"><span class="material-symbols-outlined">lock</span> Encriptar Archivo</h2>
+                    <div class="space-y-4">
+                        
+                        <!-- AVISO DE ARCHIVO RECIBIDO -->
+                        <template x-if="archivoPendiente">
+                            <div class="bg-green-500/20 border border-green-500/50 p-4 rounded-2xl flex items-center gap-3 shadow-lg">
+                                <span class="material-symbols-outlined text-green-400 text-3xl">task</span>
+                                <div class="flex-grow">
+                                    <h4 class="text-green-400 font-black text-[10px] uppercase tracking-widest">Archivo Recibido</h4>
+                                    <p class="text-white text-sm truncate max-w-[200px]" x-text="archivoPendiente.file.name || 'Documento adjunto'"></p>
+                                </div>
+                                <button @click="cancelarCompartido()" class="text-red-400 p-2 bg-red-500/10 rounded-xl"><span class="material-symbols-outlined">close</span></button>
+                            </div>
+                        </template>
+
+                        <input type="text" x-model="nuevo.nombre" placeholder="Nombre (Ej: Nómina Mayo...)" class="w-full p-4 rounded-2xl text-base font-bold outline-none focus:ring-2 ring-blue-500">
+                        <div class="grid grid-cols-2 gap-3">
+                            <select x-model="nuevo.categoria" class="p-4 rounded-2xl text-xs font-bold outline-none uppercase">
+                                <template x-for="cat in categorias.filter(c => c !== 'TODOS')">
+                                    <option :value="cat" x-text="cat"></option>
+                                </template>
+                            </select>
+                            <input type="date" x-model="nuevo.fecha" class="p-4 rounded-2xl text-xs font-bold outline-none uppercase">
+                        </div>
+                        
+                        <template x-if="!archivoPendiente">
+                            <div class="grid grid-cols-2 gap-4 pt-2">
+                                <button @click="$refs.camInput.click()" class="py-5 bg-blue-600 rounded-[1.5rem] font-black text-white uppercase text-[11px] flex flex-col items-center justify-center gap-2 shadow-lg active:bg-blue-700 transition-colors">
+                                    <span class="material-symbols-outlined text-3xl">photo_camera</span> FOTO
+                                </button>
+                                <button @click="$refs.fileInput.click()" class="py-5 bg-slate-700 rounded-[1.5rem] font-black text-white uppercase text-[11px] flex flex-col items-center justify-center gap-2 border border-white/10 active:bg-slate-600 transition-colors">
+                                    <span class="material-symbols-outlined text-3xl">folder_zip</span> ARCHIVO / PDF
+                                </button>
+                            </div>
+                        </template>
+
+                        <!-- BOTÓN ESPECIAL SI VIENE DE OTRA APP -->
+                        <template x-if="archivoPendiente">
+                            <div class="pt-2">
+                                <button @click="procesarArchivoPendiente()" class="w-full py-5 bg-green-600 rounded-[1.5rem] font-black text-white uppercase text-[11px] flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(34,197,94,0.4)] active:bg-green-700 transition-colors">
+                                    <span class="material-symbols-outlined text-2xl">save</span> GUARDAR EN LA NUBE
+                                </button>
+                            </div>
+                        </template>
+
+                        <input type="file" x-ref="camInput" class="hidden" accept="image/*" capture="environment" @change="procesarInputLocal($event, false)">
+                        <input type="file" x-ref="fileInput" class="hidden" accept="image/*,application/pdf" @change="procesarInputLocal($event, null)">
+                    </div>
+                </section>
+
+                <!-- FILTROS -->
+                <div class="flex gap-2 overflow-x-auto no-scrollbar py-2 border-b border-white/5 pb-4">
+                    <template x-for="cat in categorias">
+                        <button @click="filtro = cat" 
+                                :class="filtro === cat ? 'active-tab' : 'bg-slate-800 text-slate-400 border border-white/5'"
+                                class="px-6 py-3 rounded-2xl text-[11px] font-black uppercase transition-all flex-shrink-0 tracking-widest" x-text="cat"></button>
+                    </template>
+                </div>
+
+                <!-- LISTA DE DOCUMENTOS -->
+                <div class="grid gap-4">
+                    <template x-if="docsFiltrados.length === 0">
+                        <div class="text-center p-10 text-slate-600 flex flex-col items-center">
+                            <span class="material-symbols-outlined text-6xl mb-4 opacity-50">inventory_2</span>
+                            <p class="font-bold">Caja fuerte vacía.</p>
+                        </div>
+                    </template>
+
+                    <template x-for="doc in docsFiltrados" :key="doc.id">
+                        <div class="card-doc p-4 flex items-center justify-between active:scale-[0.98] transition-transform overflow-hidden relative" 
+                             :class="{'expiry-warning': esCaducado(doc.fecha), 'nomina-style': doc.categoria === 'NÓMINAS'}">
+                            
+                            <div class="flex items-center gap-4 flex-grow cursor-pointer" @click="abrirVisor(doc)">
+                                <div class="w-16 h-16 rounded-xl overflow-hidden bg-slate-800 flex items-center justify-center border border-white/10 flex-shrink-0 relative">
+                                    <template x-if="!doc.esPDF && doc.dataBase64">
+                                        <img :src="doc.dataBase64" class="thumb-img opacity-80">
+                                    </template>
+                                    <template x-if="doc.esPDF || !doc.dataBase64">
+                                        <span class="material-symbols-outlined text-3xl text-red-400">picture_as_pdf</span>
+                                    </template>
+                                    <div class="absolute bottom-0 left-0 right-0 bg-black/60 text-center py-0.5 backdrop-blur-sm">
+                                        <span class="text-[8px] font-black text-white uppercase tracking-widest" x-text="doc.esPDF ? 'PDF' : 'IMG'"></span>
+                                    </div>
+                                </div>
+
+                                <div class="w-full">
+                                    <h3 class="font-black text-white text-sm md:text-base leading-tight mb-1" x-text="doc.nombre"></h3>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-[9px] font-black bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-md uppercase" x-text="doc.categoria"></span>
+                                        <span class="text-slate-600 text-xs">•</span>
+                                        <p class="text-[10px] font-bold" :class="esCaducado(doc.fecha) ? 'text-red-400' : 'text-slate-400'" x-text="doc.fecha ? formatDate(doc.fecha) : 'Sin caducidad'"></p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <button @click.stop="borrar(doc)" class="text-slate-600 p-4 hover:text-red-500 transition-colors z-10 flex-shrink-0">
+                                <span class="material-symbols-outlined text-2xl">delete</span>
+                            </button>
+                        </div>
+                    </template>
+                </div>
+                
+                <div class="text-center mt-10">
+                    <button @click="cerrarSesion()" class="text-xs font-bold text-slate-500 uppercase tracking-widest underline">Cerrar Sesión Segura</button>
+                </div>
+            </main>
+        </div>
+    </template>
+
+    <script>
+        // Configuración de la librería de Mozilla para renderizar PDFs directamente
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyC7b6_T0ze2HgXiYHfvUeL12JSXE7ZKogc",
+            authDomain: "misturnos-fe3ea.firebaseapp.com",
+            databaseURL: "https://misturnos-fe3ea-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "misturnos-fe3ea",
+            storageBucket: "misturnos-fe3ea.firebasestorage.app",
+            messagingSenderId: "1029095925443",
+            appId: "1:1029095925443:web:873240d85ac5160f392476"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        function docApp() {
+            return {
+                usuarioLogueado: false, loginData: { email: '', pass: '' }, errorLogin: '',
+                showEditor: false, loading: false, statusMsg: '',
+                filtro: 'TODOS', categorias:['TODOS', 'BUS', 'NÓMINAS', 'SALUD', 'PERSONALES', 'OTROS'],
+                docs:[], nuevo: { nombre: '', categoria: 'BUS', fecha: '', esPDF: false },
+                docViewer: false, docActual: null, archivoPendiente: null,
+                cargandoPDF: false,
+                
+                init() {
+                    auth.onAuthStateChanged((user) => {
+                        if (user) {
+                            this.usuarioLogueado = true;
+                            this.cargarDatos();
+                            this.comprobarArchivosCompartidos();
+                        } else {
+                            this.usuarioLogueado = false;
+                        }
+                    });
+                },
+
+                iniciarSesion() {
+                    if(!this.loginData.email || !this.loginData.pass) { this.errorLogin = "Rellena los datos"; return; }
+                    this.errorLogin = "Comprobando...";
+                    auth.signInWithEmailAndPassword(this.loginData.email, this.loginData.pass)
+                        .then(() => { this.errorLogin = ""; this.loginData.pass = ""; })
+                        .catch(() => { this.errorLogin = "Credenciales incorrectas"; });
+                },
+
+                cerrarSesion() { auth.signOut(); this.docs =[]; },
+
+                cargarDatos() {
+                    db.collection("docsafe_b64").orderBy("createdAt", "desc").onSnapshot(snap => {
+                        this.docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    }, err => { console.error("Error BD:", err); });
+                },
+
+                comprobarArchivosCompartidos() {
+                    if (window.location.search.includes('shared=1')) {
+                        caches.open('docsafe-share').then(cache => {
+                            cache.match('/shared-file').then(response => {
+                                if (response) {
+                                    const isPDF = response.headers.get('Content-Type').includes('pdf');
+                                    response.blob().then(blob => {
+                                        const file = new File([blob], "Archivo_Compartido", { type: blob.type });
+                                        this.archivoPendiente = { file, isPDF };
+                                        this.nuevo.nombre = "Doc Recibido " + new Date().toLocaleDateString();
+                                        this.showEditor = true;
+                                        cache.delete('/shared-file');
+                                        window.history.replaceState({}, document.title, window.location.pathname);
+                                    });
+                                }
+                            });
+                        });
+                    }
+                },
+
+                abrirVisor(doc) { 
+                    this.docActual = doc; 
+                    this.docViewer = true; 
+
+                    if (doc.esPDF) {
+                        this.cargandoPDF = true;
+                        // Esperamos un instante para asegurarnos de que el DOM de Alpine se ha dibujado
+                        this.$nextTick(() => {
+                            this.renderizarPDFDirecto(doc.dataBase64);
+                        });
+                    }
+                },
+
+                cerrarVisor() {
+                    this.docViewer = false;
+                    this.docActual = null;
+                    const container = document.getElementById('pdf-viewer-container');
+                    if (container) container.innerHTML = '';
+                },
+
+                // Función que descodifica el Base64 y dibuja cada hoja del PDF en pantalla
+                async renderizarPDFDirecto(base64Data) {
+                    try {
+                        const container = document.getElementById('pdf-viewer-container');
+                        if (!container) return;
+                        container.innerHTML = ''; // Limpiamos visores previos
+
+                        // Extraemos la parte limpia de los bytes en base64
+                        const base64Pure = base64Data.split(';base64,').pop();
+                        const binaryString = atob(base64Pure);
+                        const len = binaryString.length;
+                        const bytes = new Uint8Array(len);
+                        for (let i = 0; i < len; i++) {
+                            bytes[i] = binaryString.charCodeAt(i);
+                        }
+
+                        // Cargamos el documento en PDF.js
+                        const loadingTask = pdfjsLib.getDocument({ data: bytes });
+                        const pdf = await loadingTask.promise;
+
+                        // Renderizamos todas las páginas del documento secuencialmente
+                        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                            const page = await pdf.getPage(pageNum);
+                            const viewport = page.getViewport({ scale: 1.5 });
+
+                            // Creamos un canvas para la página
+                            const canvas = document.createElement('canvas');
+                            const context = canvas.getContext('2d');
+                            canvas.height = viewport.height;
+                            canvas.width = viewport.width;
+
+                            container.appendChild(canvas);
+
+                            const renderContext = {
+                                canvasContext: context,
+                                viewport: viewport
+                            };
+                            await page.render(renderContext).promise;
+                        }
+                    } catch (e) {
+                        console.error("Error al renderizar PDF:", e);
+                        alert("⚠️ No se pudo renderizar el PDF directamente en pantalla.");
+                    } finally {
+                        this.cargandoPDF = false;
+                    }
+                },
+
+                cancelarCompartido() { this.archivoPendiente = null; this.nuevo.nombre = ''; this.showEditor = false; },
+                forzarCancelacion() { this.loading = false; this.statusMsg = "Cancelado"; },
+
+                procesarInputLocal(event, manualPDF) {
+                    const file = event.target.files[0];
+                    if(!file) return;
+                    const esPDF = manualPDF !== null ? manualPDF : (file.type === 'application/pdf');
+                    this.ejecutarSubida(file, esPDF);
+                    event.target.value = '';
+                },
+
+                procesarArchivoPendiente() {
+                    if(!this.archivoPendiente) return;
+                    this.ejecutarSubida(this.archivoPendiente.file, this.archivoPendiente.isPDF);
+                },
+
+                async ejecutarSubida(file, esPDF) {
+                    if(!this.nuevo.nombre) { alert("⚠️ Ponle un nombre al archivo."); return; }
+                    this.loading = true; this.statusMsg = "Procesando...";
+                    let base64Data = "";
+
+                    try {
+                        if (esPDF) {
+                            if (file.size > 900 * 1024) throw new Error("PDF_MUY_GRANDE");
+                            this.statusMsg = "Leyendo PDF...";
+                            base64Data = await this.leerComoBase64(file);
+                        } else {
+                            this.statusMsg = "Comprimiendo Imagen...";
+                            base64Data = await this.comprimirImagen(file);
+                        }
+
+                        this.statusMsg = "Guardando en tu caja fuerte...";
+                        await db.collection("docsafe_b64").add({
+                            nombre: this.nuevo.nombre,
+                            categoria: this.nuevo.categoria,
+                            fecha: this.nuevo.fecha,
+                            esPDF: esPDF,
+                            dataBase64: base64Data,
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+
+                        this.nuevo = { nombre: '', categoria: 'BUS', fecha: '', esPDF: false };
+                        this.showEditor = false;
+                        this.archivoPendiente = null;
+                    } catch(err) {
+                        if (err.message === "PDF_MUY_GRANDE") alert("⚠️ El PDF pesa más de 900 KB. Hazle una foto.");
+                        else alert("❌ Error al guardar. Inténtalo de nuevo.");
+                    } finally { this.loading = false; }
+                },
+
+                comprimirImagen(file) {
+                    return new Promise((resolve) => {
+                        const reader = new FileReader(); reader.readAsDataURL(file);
+                        reader.onload = (e) => {
+                            const img = new Image(); img.src = e.target.result;
+                            img.onload = () => {
+                                const canvas = document.createElement('canvas'); const MAX = 1000;
+                                let w = img.width, h = img.height;
+                                if (w > h) { if (w > MAX) { h *= MAX / w; w = MAX; } } else { if (h > MAX) { w *= MAX / h; h = MAX; } }
+                                canvas.width = w; canvas.height = h;
+                                const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, w, h);
+                                resolve(canvas.toDataURL('image/jpeg', 0.6)); 
+                            };
+                        };
+                    });
+                },
+
+                leerComoBase64(file) {
+                    return new Promise((resolve, reject) => {
+                        const reader = new FileReader(); reader.readAsDataURL(file);
+                        reader.onload = () => resolve(reader.result); reader.onerror = error => reject(error);
+                    });
+                },
+
+                async borrar(doc) {
+                    if(confirm("¿Destruir archivo definitivamente?")) {
+                        await db.collection("docsafe_b64").doc(doc.id).delete();
+                    }
+                },
+
+                formatDate(f) { if(!f) return ''; const[y, m, d] = f.split('-'); return `${d}/${m}/${y}`; },
+                
+                get docsFiltrados() { 
+                    let lista = this.filtro === 'TODOS' ? this.docs : this.docs.filter(d => d.categoria === this.filtro); 
+                    return lista.sort((a, b) => {
+                        const cadA = this.esCaducado(a.fecha), cadB = this.esCaducado(b.fecha);
+                        if(cadA && !cadB) return 1; if(!cadA && cadB) return -1; return 0;
+                    });
+                },
+                esCaducado(f) { if(!f || this.filtro === 'NÓMINAS') return false; return new Date(f) < new Date().setHours(0,0,0,0); }
+            }
+        }
+    </script>
+    <div style="display:none;">medbasha</div>
+</body>
+</html>
